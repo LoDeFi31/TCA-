@@ -1,8 +1,7 @@
 {
   "name": "Toulouse Cupping App",
   "short_name": "Cupping",
-  "start_url": "/?source=pwa",
-  "display": "standalone",
+  "start_url": "/",  "display": "standalone",
   "display_override": ["window-controls-overlay", "minimal-ui"],
   "background_color": "#FFF8F4",
   "theme_color": "#8D6E4D",
