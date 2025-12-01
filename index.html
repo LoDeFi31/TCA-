@@ -1,76 +1,47 @@
 <!DOCTYPE html>
 <html lang="fr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>Toulouse Cupping App</title>
-    <meta name="theme-color" content="#8D6E4D" />
-    <meta name="description" content="SCA Standard Coffee Cupping Application" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Toulouse Cupping 2.0</title>
+    <meta name="theme-color" content="#8D6E4D">
+    <meta name="description" content="Application professionnelle de dégustation de café (SCA Standard)">
     
-    <!-- PWA Settings -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Cupping App">
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/751/751621.png">
-    
-    <!-- Fonts: Roboto -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    
-    <!-- Tailwind CSS -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Styles -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Roboto', 'sans-serif'],
-            },
-            colors: {
-              primary: '#8D6E4D',
-              'primary-container': '#FFDCC1',
-              'on-primary': '#FFFFFF',
-              secondary: '#755839',
-              surface: '#FFF8F4',
-              'surface-variant': '#F4DED4',
-              'outline': '#857366',
-            },
-            borderRadius: {
-              'xl': '12px',
-              'lg': '8px',
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Roboto', 'sans-serif'] },
+                    colors: {
+                        primary: '#8D6E4D',
+                        'primary-container': '#FFDCC1',
+                        'on-primary': '#FFFFFF',
+                        secondary: '#755839',
+                        surface: '#FFF8F4',
+                        'surface-variant': '#F4DED4',
+                        'outline': '#857366',
+                    }
+                }
             }
-          }
         }
-      }
     </script>
     <style>
-      /* NATIVE APP FEEL CSS */
-      html, body {
-        overscroll-behavior-y: none; /* Disables Pull-to-Refresh on Android */
-        -webkit-tap-highlight-color: transparent; /* Removes blue highlight on tap */
-        user-select: none; /* Prevents text selection like a native app */
-        touch-action: pan-x pan-y;
-      }
-      
-      /* Re-enable text selection for inputs */
-      input, textarea {
-        user-select: text;
-      }
-
-      /* Hide scrollbar for chrome/safari/opera */
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      /* Hide scrollbar for IE, Edge and Firefox */
-      .no-scrollbar {
-        -ms-overflow-style: none;  /* IE and Edge */
-        scrollbar-width: none;  /* Firefox */
-      }
+        html, body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; user-select: none; touch-action: pan-x pan-y; }
+        input, textarea { user-select: text; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .safe-pb { padding-bottom: env(safe-area-inset-bottom, 20px); }
     </style>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
@@ -80,7 +51,349 @@
 }
 </script>
 </head>
-  <body class="bg-surface text-gray-800 safe-area-inset-bottom">
-    <div id="root"></div>
-  </body>
+<body class="bg-surface text-gray-800 h-screen overflow-hidden flex flex-col">
+    <div id="app" class="flex-1 flex flex-col h-full overflow-hidden"></div>
+
+    <!-- MAIN LOGIC -->
+    <script type="module">
+        import { h, render } from 'https://unpkg.com/preact@10.19.3?module';
+        import { useState, useEffect, useMemo } from 'https://unpkg.com/preact@10.19.3/hooks/dist/hooks.module.js?module';
+        import htm from 'https://unpkg.com/htm@3.1.1?module';
+
+        const html = htm.bind(h);
+
+        // --- CONSTANTS & DATA ---
+        const AROMA_CATEGORIES = [
+            { id: 'fruity', name: 'Fruité', color: '#D95858', items: ['Citron', 'Orange', 'Pamplemousse', 'Cerise', 'Fraise', 'Framboise', 'Myrtille', 'Raisin', 'Ananas', 'Mangue', 'Passion', 'Pêche', 'Pomme verte', 'Poire'] },
+            { id: 'floral', name: 'Floral', color: '#E05297', items: ['Jasmin', 'Rose', "Fleur d'oranger", 'Lavande', 'Hibiscus', 'Violette', 'Camomille'] },
+            { id: 'spicy', name: 'Épicé', color: '#B85C38', items: ['Cannelle', 'Clou de girofle', 'Muscade', 'Poivre', 'Cardamome', 'Gingembre'] },
+            { id: 'nutty', name: 'Chocolat / Noix', color: '#6D4C41', items: ['Chocolat noir', 'Chocolat au lait', 'Cacao', 'Noisette', 'Amande', 'Noix', 'Cacahuète'] },
+            { id: 'sweet', name: 'Caramélisé', color: '#D4883B', items: ['Caramel', 'Miel', 'Cassonade', "Sirop d'érable", 'Mélasse'] },
+            { id: 'cereal', name: 'Céréales / Pain', color: '#E3C16F', items: ['Pain grillé', 'Biscuit', 'Céréales', 'Malt', 'Noisette grillée'] }
+        ];
+
+        const ITEM_COLOR_OVERRIDES = {
+            'Chocolat noir': '#3E2723', 'Cacao': '#212121', 'Chocolat au lait': '#795548',
+            'Citron': '#FFEB3B', 'Orange': '#FF9800', 'Pomme verte': '#AED581', 'Cerise': '#C62828',
+            'Miel': '#FFC107', 'Caramel': '#BF360C', 'Pain grillé': '#5D4037'
+        };
+
+        const ROAST_LEVELS = [
+            { id: 'light', label: 'Light', color: '#C89F78' },
+            { id: 'medium-light', label: 'Med-Light', color: '#A67B5B' },
+            { id: 'medium', label: 'Medium', color: '#8D6E4D' },
+            { id: 'medium-dark', label: 'Med-Dark', color: '#6F4E37' },
+            { id: 'dark', label: 'Dark', color: '#4A3428' },
+        ];
+
+        const DEFAULT_COFFEE = {
+            id: '', name: 'Nouveau Café', isLocked: false, timestamp: 0,
+            roastLevel: 'medium', fragranceScore: 7.5, fragranceNotes: [],
+            flavorScore: 7.5, flavorNotes: [], aftertasteScore: 7.5,
+            acidityScore: 7.5, acidityType: '', acidityIntensity: '',
+            bodyScore: 7.5, bodyType: '', balanceScore: 7.5, comments: ''
+        };
+
+        const generateId = () => Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+
+        // --- ICONS ---
+        const Icons = {
+            Logo: () => html`<svg viewBox="0 0 100 100" class="w-9 h-9"><circle cx="50" cy="50" r="48" fill="#FFF8F4" stroke="#8D6E4D" stroke-width="2"/><mask id="mask0"><circle cx="50" cy="50" r="44" fill="white"/></mask><g mask="url(#mask0)"><rect x="0" y="0" width="100" height="50" fill="#8D6E4D"/><rect x="0" y="50" width="100" height="50" fill="#374151"/><path d="M25 55 L75 55" stroke="#FFF8F4" stroke-width="3" stroke-linecap="round" /><path d="M30 55 C30 55 30 78 50 78 C70 78 70 55 70 55" stroke="#FFF8F4" stroke-width="3" stroke-linecap="round" /><line x1="50" y1="15" x2="50" y2="42" stroke="#FFF8F4" stroke-width="4" stroke-linecap="round" /><ellipse cx="50" cy="42" rx="9" ry="11" fill="#FFF8F4" /></g></svg>`,
+            Roast: () => html`<svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" /></svg>`,
+            Bean: ({color}) => html`<svg width="32" height="32" viewBox="0 0 24 24" fill="${color}"><path d="M12 2C7.5 2 4 6.5 4 11C4 16.5 8 22 13.5 22C17.5 22 20 18.5 20 13C20 6.5 16 2 12 2ZM13 19.5C10 19.5 7.5 16 6.5 11C7 9.5 9 5.5 12 4.5C14.5 5.5 17 9.5 17.5 13C16.5 17 14.5 19 13 19.5Z" /><path d="M12 4.5C9 5.5 7 9.5 6.5 11C7.5 16 10 19.5 13 19.5C14.5 19 16.5 17 17.5 13C17 9.5 14.5 5.5 12 4.5Z" stroke="rgba(255,255,255,0.2)" stroke-width="1"/></svg>`,
+            Google: () => html`<svg class="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>`
+        };
+
+        // --- UI COMPONENTS ---
+        const getContrastYIQ = (hexcolor) => {
+            if (!hexcolor) return 'black';
+            const hex = hexcolor.replace("#", "");
+            const r = parseInt(hex.length === 3 ? hex[0]+hex[0] : hex.substring(0,2),16);
+            const g = parseInt(hex.length === 3 ? hex[1]+hex[1] : hex.substring(2,4),16);
+            const b = parseInt(hex.length === 3 ? hex[2]+hex[2] : hex.substring(4,6),16);
+            return (((r*299)+(g*587)+(b*114))/1000) >= 128 ? '#1f2937' : 'white';
+        };
+
+        const Chip = ({ label, selected, onClick, onDelete, color, disabled }) => {
+            const bg = selected ? (color || '#8D6E4D') : '#E5E7EB';
+            const textColor = selected ? getContrastYIQ(bg) : '#374151';
+            return html`
+                <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium m-1 transition-colors border border-transparent ${!disabled && onClick ? 'cursor-pointer hover:opacity-90' : ''}"
+                     style="background-color: ${bg}; color: ${textColor}"
+                     onClick=${!disabled ? onClick : undefined}>
+                    ${label}
+                    ${onDelete && !disabled && html`<span class="ml-2 cursor-pointer opacity-70 hover:opacity-100 font-bold" onClick=${(e) => { e.stopPropagation(); onDelete(); }}>×</span>`}
+                </div>
+            `;
+        };
+
+        const Slider = ({ label, value, onChange, min=6, max=10, step=0.25, disabled }) => html`
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-sm font-medium text-gray-700">${label}</span>
+                    <span class="text-lg font-bold text-primary">${value.toFixed(2)}</span>
+                </div>
+                <input type="range" min=${min} max=${max} step=${step} value=${value} disabled=${disabled}
+                       onInput=${(e) => onChange(parseFloat(e.target.value))}
+                       class="w-full h-2 bg-primary-container rounded-lg appearance-none cursor-pointer accent-primary" />
+            </div>
+        `;
+
+        const AromaSelector = ({ selectedNotes, onChange, disabled }) => {
+            const [expanded, setExpanded] = useState(null);
+            
+            const toggle = (note) => {
+                if(disabled) return;
+                onChange(selectedNotes.includes(note) ? selectedNotes.filter(n => n !== note) : [...selectedNotes, note]);
+            };
+
+            const getColor = (note) => ITEM_COLOR_OVERRIDES[note] || AROMA_CATEGORIES.find(c => c.items.includes(note))?.color;
+
+            return html`
+                <div class="space-y-2">
+                    <div class="flex flex-wrap gap-1 min-h-[40px] p-2 bg-gray-50 rounded-lg border border-gray-100 mb-2">
+                        ${selectedNotes.length === 0 ? html`<span class="text-gray-400 text-sm italic p-1">Aucun arôme</span>` : ''}
+                        ${selectedNotes.map(n => html`<${Chip} label=${n} selected=${true} color=${getColor(n)} onDelete=${() => toggle(n)} disabled=${disabled} />`)}
+                    </div>
+                    ${!disabled && html`
+                        <div class="space-y-1">
+                            ${AROMA_CATEGORIES.map(cat => {
+                                const active = cat.items.filter(i => selectedNotes.includes(i)).length;
+                                return html`
+                                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                        <button onClick=${() => setExpanded(expanded === cat.id ? null : cat.id)} class="w-full flex justify-between items-center p-3 bg-white hover:bg-gray-50">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-3 h-3 rounded-full" style="background-color:${cat.color}"></div>
+                                                <span class="font-medium text-gray-700 text-sm">${cat.name}</span>
+                                            </div>
+                                            ${active > 0 ? html`<span class="bg-primary text-white text-xs px-2 rounded-full">${active}</span>` : ''}
+                                        </button>
+                                        ${expanded === cat.id && html`
+                                            <div class="p-3 bg-gray-50 flex flex-wrap gap-2">
+                                                ${cat.items.map(item => html`
+                                                    <${Chip} label=${item} selected=${selectedNotes.includes(item)} color=${getColor(item)} onClick=${() => toggle(item)} />
+                                                `)}
+                                            </div>
+                                        `}
+                                    </div>
+                                `;
+                            })}
+                        </div>
+                    `}
+                </div>
+            `;
+        };
+
+        const SummaryTable = ({ coffees, onBack }) => {
+            const getScore = c => (c.fragranceScore + c.flavorScore + c.aftertasteScore + c.acidityScore + c.bodyScore + c.balanceScore) / 6;
+            
+            const exportCSV = () => {
+                const csv = "data:text/csv;charset=utf-8,Café,Score\n" + coffees.map(c => `"${c.name}",${getScore(c).toFixed(2)}`).join("\n");
+                const link = document.createElement("a");
+                link.setAttribute("href", encodeURI(csv));
+                link.setAttribute("download", "cupping.csv");
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+            };
+
+            return html`
+                <div class="p-4 h-full overflow-y-auto pb-20 bg-white">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-primary">Récapitulatif</h2>
+                        <button onClick=${onBack} class="border border-primary text-primary px-3 py-1 rounded">Retour</button>
+                    </div>
+                    <div class="overflow-x-auto border rounded-lg shadow-sm">
+                        <table class="w-full text-sm text-left text-gray-500">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                <tr><th class="px-4 py-3">Café</th><th class="px-4 py-3 text-center">Score</th><th class="px-4 py-3">Notes</th></tr>
+                            </thead>
+                            <tbody>
+                                ${coffees.map(c => html`
+                                    <tr class="border-b">
+                                        <td class="px-4 py-3 font-medium text-gray-900">${c.name}</td>
+                                        <td class="px-4 py-3 text-center font-bold text-primary text-lg">${getScore(c).toFixed(2)}</td>
+                                        <td class="px-4 py-3 text-xs">${c.fragranceNotes.concat(c.flavorNotes).join(', ')}</td>
+                                    </tr>
+                                `)}
+                            </tbody>
+                        </table>
+                    </div>
+                    <button onClick=${exportCSV} class="w-full mt-6 bg-secondary text-white py-3 rounded-lg shadow">Exporter CSV</button>
+                </div>
+            `;
+        };
+
+        // --- MAIN APP ---
+        const App = () => {
+            const [session, setSession] = useState(() => {
+                try { return JSON.parse(localStorage.getItem('toulouse_cupping_v2')) || null; } catch { return null; }
+            });
+            const [activeIdx, setActiveIdx] = useState(0);
+            const [view, setView] = useState('form'); // 'form' | 'summary'
+            const [user, setUser] = useState(null);
+            const [menuOpen, setMenuOpen] = useState(false);
+
+            useEffect(() => {
+                if (!session) createSession();
+            }, []);
+
+            useEffect(() => {
+                if (session) localStorage.setItem('toulouse_cupping_v2', JSON.stringify(session));
+            }, [session]);
+
+            const createSession = () => {
+                setSession({ id: generateId(), createdAt: Date.now(), name: 'Session', coffees: [{ ...DEFAULT_COFFEE, id: generateId(), timestamp: Date.now() }] });
+                setActiveIdx(0);
+                setView('form');
+            };
+
+            const updateCoffee = (updates) => {
+                setSession(prev => ({
+                    ...prev,
+                    coffees: prev.coffees.map((c, i) => i === activeIdx ? { ...c, ...updates } : c)
+                }));
+            };
+
+            const addCoffee = () => {
+                setSession(prev => ({
+                    ...prev,
+                    coffees: [...prev.coffees, { ...DEFAULT_COFFEE, id: generateId(), name: `Café ${prev.coffees.length + 1}`, timestamp: Date.now() }]
+                }));
+                setActiveIdx(session.coffees.length);
+            };
+
+            const login = () => {
+                setTimeout(() => setUser({ name: 'Expert', photo: 'https://ui-avatars.com/api/?name=E&bg=8D6E4D&color=fff' }), 1000);
+            };
+
+            if (!session) return html`<div class="flex items-center justify-center h-full">Chargement...</div>`;
+
+            if (view === 'summary') return html`<${SummaryTable} coffees=${session.coffees} onBack=${() => setView('form')} />`;
+
+            const activeCoffee = session.coffees[activeIdx];
+            const finalScore = ((activeCoffee.fragranceScore + activeCoffee.flavorScore + activeCoffee.aftertasteScore + activeCoffee.acidityScore + activeCoffee.bodyScore + activeCoffee.balanceScore) / 6).toFixed(2);
+
+            return html`
+                <div class="flex flex-col h-full">
+                    <!-- HEADER -->
+                    <header class="bg-primary text-white p-3 shadow-md z-20 flex justify-between items-center shrink-0">
+                        <div class="flex items-center gap-2">
+                            <${Icons.Logo} />
+                            <h1 class="font-bold text-lg">Toulouse Cupping</h1>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            ${!user ? html`
+                                <button onClick=${login} class="bg-white text-gray-700 px-3 py-1 rounded shadow text-xs font-bold flex items-center gap-1">
+                                    <${Icons.Google} /> Login
+                                </button>
+                            ` : html`<img src=${user.photo} class="w-8 h-8 rounded-full border border-white" />`}
+                            <button onClick=${() => setMenuOpen(!menuOpen)} class="text-2xl ml-2">☰</button>
+                        </div>
+                    </header>
+
+                    <!-- MENU DROPDOWN -->
+                    ${menuOpen && html`
+                        <div class="absolute top-14 right-2 bg-white rounded shadow-xl border z-50 w-64 text-sm animate-fadeIn">
+                            <div class="p-2 border-b"><button onClick=${() => { setView('summary'); setMenuOpen(false); }} class="w-full text-left p-2 hover:bg-gray-50">📊 Récapitulatif</button></div>
+                            <div class="p-2"><button onClick=${() => { if(confirm('Reset?')) createSession(); setMenuOpen(false); }} class="w-full text-left p-2 text-red-600">❌ Nouvelle Session</button></div>
+                        </div>
+                    `}
+
+                    <!-- TABS -->
+                    <div class="bg-surface-variant p-2 overflow-x-auto flex gap-2 shrink-0 no-scrollbar shadow-inner">
+                        ${session.coffees.map((c, i) => html`
+                            <button onClick=${() => setActiveIdx(i)} class="px-4 py-1.5 rounded-full text-sm whitespace-nowrap transition-all ${i === activeIdx ? 'bg-primary text-white shadow' : 'bg-white/50 text-gray-600'}">
+                                ${c.name} ${c.isLocked ? '🔒' : ''}
+                            </button>
+                        `)}
+                        <button onClick=${addCoffee} class="px-3 py-1 rounded-full bg-primary/20 text-primary font-bold">+</button>
+                    </div>
+
+                    <!-- FORM SCROLL AREA -->
+                    <main class="flex-1 overflow-y-auto p-4 space-y-4 pb-32">
+                        <!-- HEADER CARD -->
+                        <div class="bg-primary text-white p-4 rounded-xl shadow mb-4">
+                            <label class="text-xs uppercase opacity-70">Nom du café</label>
+                            <input type="text" value=${activeCoffee.name} disabled=${activeCoffee.isLocked}
+                                   onInput=${(e) => updateCoffee({ name: e.target.value })}
+                                   class="bg-transparent text-2xl font-bold w-full border-b border-white/30 focus:outline-none" />
+                        </div>
+
+                        <!-- ROAST -->
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-surface-variant">
+                            <h3 class="font-semibold text-primary mb-3 flex items-center gap-2"><${Icons.Roast} /> Torréfaction</h3>
+                            <div class="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                                ${ROAST_LEVELS.map(lvl => html`
+                                    <button onClick=${() => updateCoffee({ roastLevel: lvl.id })} disabled=${activeCoffee.isLocked}
+                                            class="flex flex-col items-center min-w-[60px] p-2 rounded-lg ${activeCoffee.roastLevel === lvl.id ? 'bg-surface-variant ring-2 ring-primary' : 'opacity-60'}">
+                                        <${Icons.Bean} color=${lvl.color} />
+                                        <span class="text-[10px] mt-1 font-bold">${lvl.label}</span>
+                                    </button>
+                                `)}
+                            </div>
+                        </div>
+
+                        <!-- FRAGRANCE -->
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-surface-variant">
+                            <h3 class="font-semibold text-primary mb-2">Fragrance / Arôme</h3>
+                            <${Slider} value=${activeCoffee.fragranceScore} onChange=${(v) => updateCoffee({ fragranceScore: v })} disabled=${activeCoffee.isLocked} />
+                            <div class="mt-2"><${AromaSelector} selectedNotes=${activeCoffee.fragranceNotes} onChange=${(n) => updateCoffee({ fragranceNotes: n })} disabled=${activeCoffee.isLocked} /></div>
+                        </div>
+
+                        <!-- FLAVOR -->
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-surface-variant">
+                            <h3 class="font-semibold text-primary mb-2">Saveur</h3>
+                            <${Slider} value=${activeCoffee.flavorScore} onChange=${(v) => updateCoffee({ flavorScore: v })} disabled=${activeCoffee.isLocked} />
+                            <div class="mt-2"><${AromaSelector} selectedNotes=${activeCoffee.flavorNotes} onChange=${(n) => updateCoffee({ flavorNotes: n })} disabled=${activeCoffee.isLocked} /></div>
+                        </div>
+
+                         <!-- SLIDERS GRID -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-white p-4 rounded-xl shadow-sm border border-surface-variant">
+                                <h3 class="font-semibold text-primary mb-2">Arrière-goût</h3>
+                                <${Slider} value=${activeCoffee.aftertasteScore} onChange=${(v) => updateCoffee({ aftertasteScore: v })} disabled=${activeCoffee.isLocked} />
+                            </div>
+                            <div class="bg-white p-4 rounded-xl shadow-sm border border-surface-variant">
+                                <h3 class="font-semibold text-primary mb-2">Corps</h3>
+                                <${Slider} value=${activeCoffee.bodyScore} onChange=${(v) => updateCoffee({ bodyScore: v })} disabled=${activeCoffee.isLocked} />
+                            </div>
+                            <div class="bg-white p-4 rounded-xl shadow-sm border border-surface-variant">
+                                <h3 class="font-semibold text-primary mb-2">Acidité</h3>
+                                <${Slider} value=${activeCoffee.acidityScore} onChange=${(v) => updateCoffee({ acidityScore: v })} disabled=${activeCoffee.isLocked} />
+                            </div>
+                            <div class="bg-white p-4 rounded-xl shadow-sm border border-surface-variant">
+                                <h3 class="font-semibold text-primary mb-2">Équilibre</h3>
+                                <${Slider} value=${activeCoffee.balanceScore} onChange=${(v) => updateCoffee({ balanceScore: v })} disabled=${activeCoffee.isLocked} />
+                            </div>
+                        </div>
+
+                        <!-- BOTTOM SUMMARY BUTTON -->
+                        <div class="pt-4 flex justify-center">
+                            <button onClick=${() => setView('summary')} class="bg-secondary text-white px-6 py-3 rounded-xl shadow-lg font-bold w-full">Voir Récapitulatif</button>
+                        </div>
+                    </main>
+
+                    <!-- BOTTOM BAR -->
+                    <div class="fixed bottom-0 left-0 right-0 bg-white border-t p-3 shadow-lg z-40 flex justify-between items-center safe-pb">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Score Final</span>
+                            <span class="text-3xl font-bold text-primary leading-none">${finalScore}</span>
+                        </div>
+                        <button onClick=${() => updateCoffee({ isLocked: !activeCoffee.isLocked })} class="px-4 py-2 rounded-lg font-bold transition-colors ${activeCoffee.isLocked ? 'bg-gray-200 text-gray-600' : 'bg-primary text-white'}">
+                            ${activeCoffee.isLocked ? 'Déverrouiller' : 'Valider Café'}
+                        </button>
+                    </div>
+                </div>
+            `;
+        };
+
+        render(html`<${App} />`, document.getElementById('app'));
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch(console.error);
+        }
+    </script>
+</body>
 </html>
